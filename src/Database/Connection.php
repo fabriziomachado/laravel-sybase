@@ -127,15 +127,7 @@ class Connection extends IlluminateConnection
         return $result;
     }
 
-    /**
-     * Run a select statement against the database.
-     *
-     * @param  string  $query
-     * @param  array  $bindings
-     * @param  bool  $useReadPdo
-     * @param  array  $fetchUsing
-     * @return array
-     */
+
     /**
      * Fluent helper to execute a stored procedure that returns a single result set.
      *
@@ -146,6 +138,16 @@ class Connection extends IlluminateConnection
         return new RpcCall($this, $procedure);
     }
 
+
+    /**
+     * Run a select statement against the database.
+     *
+     * @param  string  $query
+     * @param  array  $bindings
+     * @param  bool  $useReadPdo
+     * @param  array  $fetchUsing
+     * @return array
+     */
     public function select($query, $bindings = [], $useReadPdo = true, array $fetchUsing = [])
     {
         return $this->run($query, $bindings, function ($query, $bindings) use ($fetchUsing) {
