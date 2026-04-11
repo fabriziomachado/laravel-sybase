@@ -119,6 +119,45 @@ To use the database layer conversion add the property charset to connection conf
 
 
 
+## Stored procedures (`rpc()`)
+
+Use `rpc()` on the Sybase connection to run stored procedures that return **exactly one final result set** (multiple trailing `SELECT` statements are not supported by this helper). Typical contracts expose `cd_retorno` (`0` = success, `> 0` = application error) and `msg_retorno`.
+
+```php
+use Illuminate\Support\Facades\DB;
+
+$rows = DB::connection('sybase')
+    ->rpc('dbo.sp_exemplo')
+    ->with(['cd_pessoa_p' => $id]) // keys may include or omit a leading `@`
+    ->get(); // same row shape as Connection::select()
+
+$first = DB::connection('sybase')
+    ->rpc('dbo.sp_exemplo')
+    ->with(['@cd_pessoa_p' => $id])
+    ->first();
+
+DB::connection('sybase')
+    ->rpc('dbo.sp_exemplo')
+    ->with($dto) // Illuminate\Contracts\Support\Arrayable or associative array
+    ->assertOk() // throws ProcedureExecutionException if cd_retorno != 0
+    ->first();
+```
+
+Optional read path and fetch mode follow `select()`:
+
+```php
+DB::connection('sybase')
+    ->rpc('dbo.sp_exemplo')
+    ->with(['p' => 1])
+    ->useReadPdo(false)
+    ->fetchUsing([\PDO::FETCH_ASSOC])
+    ->get();
+```
+
+`toStatement()` returns the built `EXEC ... @name = ?, ...` string and positional bindings (for logging or tests) without executing the procedure.
+
+This API does **not** cover `OUTPUT` parameters or procedures that return multiple result sets unless you handle them with a raw `select()` yourself.
+
 ## Configuring the cache
 As the library consults table information whenever it receives a request, caching can be used to avoid excessive queries
 
