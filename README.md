@@ -121,7 +121,20 @@ To use the database layer conversion add the property charset to connection conf
 
 ## Stored procedures (`rpc()`)
 
-Use `rpc()` on the Sybase connection to run stored procedures that return **exactly one final result set** (multiple trailing `SELECT` statements are not supported by this helper). Typical contracts expose `cd_retorno` (`0` = success, `> 0` = application error) and `msg_retorno`.
+Use `rpc()` on the Sybase connection to run stored procedures that return **exactly one final result set** (multiple trailing `SELECT` statements are not supported by this helper).
+
+### Result set convention (status columns)
+
+Design procedures that participate in this flow so the **only** result set returned to the client **always** includes at least these columns (names matched case-insensitively):
+
+| Column         | Role |
+|----------------|------|
+| **`cd_retorno`** | `0` = success; **`> 0`** = application / business error code expected by PHP (`assertOk()`, `ProcedureExecutionException`). |
+| **`msg_retorno`**| Human-readable message for errors (and optional context on success); surfaced on the exception when `cd_retorno` ≠ 0. |
+
+**`assertOk()`** inspects the **first row** only. **`get()`** / **`first()`** return whatever columns the procedure selects, but callers and tooling should rely on the same contract so every call can distinguish OK vs application error without ad hoc parsing.
+
+If a procedure omits `cd_retorno` (or returns no rows), `assertOk()` cannot validate the outcome and will throw `InvalidArgumentException` as documented below.
 
 ```php
 use Illuminate\Support\Facades\DB;
@@ -147,6 +160,35 @@ DB::connection('sybase')
     ->with($dto) // Illuminate\Contracts\Support\Arrayable or associative array
     ->assertOk() // throws ProcedureExecutionException if cd_retorno != 0
     ->first();
+```
+
+### Exceptions
+
+Execution still goes through `Connection::select()`, so **SQL and driver failures** surface as Laravel’s usual `Illuminate\Database\QueryException` (and related PDO errors), like any other query.
+
+**`Uepg\LaravelSybase\Database\ProcedureExecutionException`** (extends `RuntimeException`) is thrown by **`assertOk()`** when the first row of the result set has **`cd_retorno` ≠ 0** (application-level error returned by the procedure). Use it to branch on business errors without inspecting the row manually:
+
+- **`$e->getMessage()`** — prefers `msg_retorno` when present, otherwise a short default message.
+- **`$e->getCode()`** — the numeric `cd_retorno` (also available as **`$e->cdRetorno`**).
+- **`$e->msgRetorno`** — optional string from the `msg_retorno` column (may be `null`).
+
+**`InvalidArgumentException`** is thrown by `RpcCall` for **invalid usage before or during `assertOk()`**, including:
+
+- **Procedure name** passed to `rpc()` does not match the allowed pattern (empty or disallowed characters).
+- **Named parameters**: non-string keys, empty parameter name, or name not matching `^[a-zA-Z_][a-zA-Z0-9_]*$` (after stripping an optional leading `@`).
+- **`assertOk()`**: result set is **empty**, or the first row has **no `cd_retorno` column** (case-insensitive match on column names).
+
+```php
+use Illuminate\Database\QueryException;
+use Uepg\LaravelSybase\Database\ProcedureExecutionException;
+
+try {
+    DB::connection('sybase')->rpc('dbo.sp_exemplo')->with(['id' => $id])->assertOk();
+} catch (ProcedureExecutionException $e) {
+    // $e->cdRetorno, $e->msgRetorno, $e->getMessage()
+} catch (QueryException $e) {
+    // syntax, connectivity, Sybase errors, etc.
+}
 ```
 
 Optional read path and fetch mode follow `select()`:
