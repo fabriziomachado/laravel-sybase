@@ -143,13 +143,28 @@ class RpcCall
 
         [$query, $bindings] = $this->compileExecute();
 
-        $this->rows = $this->connection->select(
+        $rawRows = $this->connection->select(
             $query,
             $bindings,
             $this->useReadPdo,
             $this->fetchUsing,
         );
 
+        $this->rows = array_map(
+            static function (mixed $row): array {
+                if (is_array($row)) {
+                    return $row;
+                }
+
+                if ($row instanceof \stdClass) {
+                    return get_object_vars($row);
+                }
+
+                return (array) $row;
+            },
+            $rawRows,
+        );
+        
         return $this->rows;
     }
 
