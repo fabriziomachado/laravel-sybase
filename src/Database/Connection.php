@@ -436,6 +436,8 @@ class Connection extends IlluminateConnection
                 return true;
             }
 
+            $this->recordsHaveBeenModified();
+
             return $this->getPdo()
                 ->query($this->compileNewQuery($query, $bindings));
         });
@@ -455,9 +457,14 @@ class Connection extends IlluminateConnection
                 return 0;
             }
 
-            return $this->getPdo()
-                ->query($this->compileNewQuery($query, $bindings))
-                ->rowCount();
+            $statement = $this->getPdo()
+                ->query($this->compileNewQuery($query, $bindings));
+
+            $this->recordsHaveBeenModified(
+                ($count = $statement->rowCount()) > 0
+            );
+
+            return $count;
         });
     }
 
