@@ -7,7 +7,15 @@ use InvalidArgumentException;
 
 class RpcCall
 {
-    protected array $parameters = [];
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $namedParameters = [];
+
+    /**
+     * @var array<int, mixed>
+     */
+    protected array $positionalParameters = [];
 
     protected bool $useReadPdo = true;
 
@@ -23,12 +31,27 @@ class RpcCall
     }
 
     /**
-     * @param  array<string, mixed>|object  $parameters
+     * Named parameters (associative array, object or Arrayable with string keys) become
+     * EXEC name @param = ?, ... A zero-based list (only values) becomes
+     * EXEC name ?, ?, ... in the same order as the procedure signature.
+     *
+     * @param  array<int|string, mixed>|object  $parameters
      */
     public function with(array|object $parameters): self
     {
         $this->rows = null;
-        $this->parameters = array_merge($this->parameters, $this->normalizeParameters($parameters));
+        $data = $this->parametersToArray($parameters);
+
+        if (is_array($data) && array_is_list($data)) {
+            $this->namedParameters = [];
+            $this->positionalParameters = $data;
+        } else {
+            $this->positionalParameters = [];
+            $this->namedParameters = array_merge(
+                $this->namedParameters,
+                $this->normalizeNamedParameters($data),
+            );
+        }
 
         return $this;
     }
@@ -135,10 +158,18 @@ class RpcCall
      */
     protected function compileExecute(): array
     {
+        if ($this->positionalParameters !== []) {
+            $n = count($this->positionalParameters);
+            $placeholders = implode(', ', array_fill(0, $n, '?'));
+            $sql = 'EXEC '.$this->procedure.' '.$placeholders;
+
+            return [$sql, $this->positionalParameters];
+        }
+
         $bindings = [];
         $fragments = [];
 
-        foreach ($this->parameters as $name => $value) {
+        foreach ($this->namedParameters as $name => $value) {
             $fragments[] = '@'.$name.' = ?';
             $bindings[] = $value;
         }
@@ -151,12 +182,11 @@ class RpcCall
     }
 
     /**
-     * @param  array<string, mixed>|object  $parameters
+     * @param  array<int|string, mixed>  $data
      * @return array<string, mixed>
      */
-    protected function normalizeParameters(array|object $parameters): array
+    protected function normalizeNamedParameters(array $data): array
     {
-        $data = $this->parametersToArray($parameters);
         $normalized = [];
 
         foreach ($data as $key => $value) {
@@ -172,8 +202,8 @@ class RpcCall
     }
 
     /**
-     * @param  array<string, mixed>|object  $parameters
-     * @return array<string, mixed>
+     * @param  array<int|string, mixed>|object  $parameters
+     * @return array<int|string, mixed>
      */
     protected function parametersToArray(array|object $parameters): array
     {
