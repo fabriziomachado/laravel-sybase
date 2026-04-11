@@ -131,6 +131,12 @@ $rows = DB::connection('sybase')
     ->with(['cd_pessoa_p' => $id]) // keys may include or omit a leading `@`
     ->get(); // same row shape as Connection::select()
 
+// Positional arguments (values only), in the same order as the procedure parameters:
+$rows = DB::connection('sybase')
+    ->rpc('dbo.sp_exemplo')
+    ->with([$id, $nome])
+    ->get();
+
 $first = DB::connection('sybase')
     ->rpc('dbo.sp_exemplo')
     ->with(['@cd_pessoa_p' => $id])
@@ -154,7 +160,7 @@ DB::connection('sybase')
     ->get();
 ```
 
-`toStatement()` returns the built `EXEC ... @name = ?, ...` string and positional bindings (for logging or tests) without executing the procedure.
+`toStatement()` returns the built SQL (`EXEC ... @name = ?, ...` or `EXEC ... ?, ?, ...`) and bindings (for logging or tests) without executing the procedure. A new `with()` that switches between a list and an associative array replaces the previous argument style for that call chain.
 
 This API does **not** cover `OUTPUT` parameters or procedures that return multiple result sets unless you handle them with a raw `select()` yourself.
 
