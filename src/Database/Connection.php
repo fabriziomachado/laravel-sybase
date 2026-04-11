@@ -130,17 +130,15 @@ class Connection extends IlluminateConnection
     /**
      * Run a select statement against the database.
      *
-     * @param string $query
-     * @param array $bindings
-     * @param bool $useReadPdo
+     * @param  string  $query
+     * @param  array  $bindings
+     * @param  bool  $useReadPdo
+     * @param  array  $fetchUsing
      * @return array
      */
-    public function select($query, $bindings = [], $useReadPdo = true)
+    public function select($query, $bindings = [], $useReadPdo = true, array $fetchUsing = [])
     {
-        return $this->run($query, $bindings, function (
-            $query,
-            $bindings
-        ) {
+        return $this->run($query, $bindings, function ($query, $bindings) use ($fetchUsing) {
             if ($this->pretending()) {
                 return [];
             }
@@ -156,7 +154,10 @@ class Connection extends IlluminateConnection
 
             try {
                 do {
-                    $result += $statement->fetchAll($this->getFetchMode());
+                    $rows = $fetchUsing !== []
+                        ? $statement->fetchAll(...$fetchUsing)
+                        : $statement->fetchAll($this->getFetchMode());
+                    $result += $rows;
                 } while ($statement->nextRowset());
             } catch (\Exception $e) {
             }
