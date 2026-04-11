@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Roda Composer em container (Docker no WSL Ubuntu / Linux).
+# Erro "error getting credentials": verifique ~/.docker/config.json (credsStore) ou faça docker login.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+exec docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "${ROOT}:/app" \
+  -w /app \
+  -e COMPOSER_HOME=/tmp/composer-home \
+  -e HOME=/tmp \
+  composer:2 \
+  composer "$@"
