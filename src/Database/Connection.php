@@ -136,6 +136,16 @@ class Connection extends IlluminateConnection
      * @param  array  $fetchUsing
      * @return array
      */
+    /**
+     * Fluent helper to execute a stored procedure that returns a single result set.
+     *
+     * @see \Uepg\LaravelSybase\Database\RpcCall
+     */
+    public function rpc(string $procedure): RpcCall
+    {
+        return new RpcCall($this, $procedure);
+    }
+
     public function select($query, $bindings = [], $useReadPdo = true, array $fetchUsing = [])
     {
         return $this->run($query, $bindings, function ($query, $bindings) use ($fetchUsing) {
