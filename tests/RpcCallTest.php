@@ -35,6 +35,57 @@ class RpcCallTest extends TestCase
         $this->assertSame([10, 'Ana'], $bindings);
     }
 
+    public function test_to_statement_builds_exec_with_positional_placeholders(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $rpc = (new RpcCall($connection, 'dbo.sp_ordem'))
+            ->with([10, 'Ana', null]);
+
+        [$sql, $bindings] = $rpc->toStatement();
+
+        $this->assertSame('EXEC dbo.sp_ordem ?, ?, ?', $sql);
+        $this->assertSame([10, 'Ana', null], $bindings);
+    }
+
+    public function test_positional_with_replaces_previous_positional_arguments(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $rpc = (new RpcCall($connection, 'dbo.sp_rep'))
+            ->with([1, 2])
+            ->with([9]);
+
+        [$sql, $bindings] = $rpc->toStatement();
+
+        $this->assertSame('EXEC dbo.sp_rep ?', $sql);
+        $this->assertSame([9], $bindings);
+    }
+
+    public function test_named_with_clears_positional_arguments(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $rpc = (new RpcCall($connection, 'dbo.sp_mix'))
+            ->with([1, 2])
+            ->with(['p' => 3]);
+
+        [$sql, $bindings] = $rpc->toStatement();
+
+        $this->assertSame('EXEC dbo.sp_mix @p = ?', $sql);
+        $this->assertSame([3], $bindings);
+    }
+
+    public function test_list_with_clears_named_parameters(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $rpc = (new RpcCall($connection, 'dbo.sp_switch'))
+            ->with(['p' => 1])
+            ->with([5, 6]);
+
+        [$sql, $bindings] = $rpc->toStatement();
+
+        $this->assertSame('EXEC dbo.sp_switch ?, ?', $sql);
+        $this->assertSame([5, 6], $bindings);
+    }
+
     public function test_get_delegates_to_connection_select_with_options(): void
     {
         $connection = $this->createMock(Connection::class);
