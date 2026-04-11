@@ -9,8 +9,8 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
 use PDO;
 use PDOException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use PDOStatement;
-use Throwable;
 use Uepg\LaravelSybase\Database\Query\Grammar as QueryGrammar;
 use Uepg\LaravelSybase\Database\Query\Processor;
 use Uepg\LaravelSybase\Database\Schema\Blueprint;
@@ -96,7 +96,7 @@ class Connection extends IlluminateConnection
      * @param  int  $attempts
      * @return mixed
      *
-     * @throws Throwable
+     * @throws \Throwable
      */
     public function transaction(Closure $callback, $attempts = 1)
     {
@@ -526,27 +526,41 @@ class Connection extends IlluminateConnection
         try {
             $result = $callback($query, $bindings);
 
-            if ($result instanceof \PDOStatement) {
+            if ($result instanceof PDOStatement) {
                 $errorInfo = $result->errorInfo();
                 if (isset($errorInfo[0]) && $errorInfo[0] !== '00000') {
                     $finalErrorMessage = sprintf(
                         'SQLSTATE[%s] [%d] %s',
                         $errorInfo[0],
-                        (int)$errorInfo[1],
+                        (int) $errorInfo[1],
                         trim(preg_replace(['/^\[\d+\]\s\(severity\s\d+\)\s/', '/\s+/'], ['', ' '], $errorInfo[2]))
                     );
-                    throw new \PDOException($finalErrorMessage, (int)$errorInfo[1]);
+                    throw new PDOException($finalErrorMessage, (int) $errorInfo[1]);
                 }
             }
-            return $result;
 
-        } catch (Throwable $e) {
-            throw new QueryException(
-                $this->getName(),
+            return $result;
+        } catch (Exception $e) {
+            $exceptionType = ($isUniqueConstraintError = $this->isUniqueConstraintError($e))
+                ? UniqueConstraintViolationException::class
+                : QueryException::class;
+
+            $exception = new $exceptionType(
+                $this->getNameWithReadWriteType(),
                 $query,
                 $this->prepareBindings($bindings),
-                $e
+                $e,
+                $this->getConnectionDetails(),
+                $this->latestReadWriteTypeUsed(),
             );
+
+            if ($isUniqueConstraintError) {
+                ['index' => $index, 'columns' => $columns] = $this->parseUniqueConstraintViolation($e);
+
+                $exception->setIndex($index)->setColumns($columns);
+            }
+
+            throw $exception;
         }
     }
 }
