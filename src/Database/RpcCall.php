@@ -93,14 +93,14 @@ class RpcCall
         return $rows[0] ?? null;
     }
 
-    public function assertOk(): self
+    public function throwOnError(): self
     {
         $rows = $this->execute();
         $first = $rows[0] ?? null;
 
         if ($first === null) {
             throw new InvalidArgumentException(
-                'Procedure returned no rows; assertOk() requires a row with cd_retorno.'
+                'Procedure returned no rows; throwOnError() requires a row with cd_retorno.'
             );
         }
 
@@ -108,7 +108,7 @@ class RpcCall
 
         if ($cd === null) {
             throw new InvalidArgumentException(
-                'Procedure result is missing cd_retorno; cannot assertOk().'
+                'Procedure result is missing cd_retorno; cannot throwOnError().'
             );
         }
 

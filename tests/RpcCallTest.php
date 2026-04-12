@@ -127,7 +127,7 @@ class RpcCallTest extends TestCase
         $this->assertSame([['n' => 2]], $rpc->get());
     }
 
-    public function test_assert_ok_throws_when_cd_retorno_is_non_zero(): void
+    public function test_throw_on_error_throws_when_cd_retorno_is_non_zero(): void
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('select')->willReturn([
@@ -139,7 +139,7 @@ class RpcCallTest extends TestCase
 
         try {
             (new RpcCall($connection, 'dbo.sp_err'))
-                ->assertOk();
+                ->throwOnError();
         } catch (ProcedureExecutionException $e) {
             $this->assertSame(5, $e->cdRetorno);
             $this->assertSame('Falhou', $e->msgRetorno);
@@ -148,7 +148,21 @@ class RpcCallTest extends TestCase
         }
     }
 
-    public function test_assert_ok_then_first_reuses_same_execution(): void
+
+    public function test_throw_on_error_returns_self_when_cd_retorno_is_zero(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $connection->method('select')->willReturn([
+            ['cd_retorno' => 0, 'msg_retorno' => 'OK'],
+        ]);
+
+        $rpc = new RpcCall($connection, 'dbo.sp_ok');
+        $result = $rpc->throwOnError();
+
+        $this->assertSame($rpc, $result);
+    }
+
+    public function test_throw_on_error_then_first_reuses_same_execution(): void
     {
         $connection = $this->createMock(Connection::class);
         $connection->expects($this->once())
@@ -159,7 +173,7 @@ class RpcCallTest extends TestCase
 
         $rpc = new RpcCall($connection, 'dbo.sp_ok');
 
-        $rpc->assertOk();
+        $rpc->throwOnError();
         $first = $rpc->first();
 
         $this->assertSame(['CD_RETORNO' => 0, 'msg_retorno' => 'OK', 'x' => 1], $first);
