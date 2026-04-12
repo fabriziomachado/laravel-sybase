@@ -1,5 +1,6 @@
 {
     "name": "uepg/laravel-sybase",
+    "version": "6.0.0",
     "description": "Sybase based Eloquent module extension for Laravel",
     "keywords": [
         "sybase"
