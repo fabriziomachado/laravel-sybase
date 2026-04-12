@@ -150,12 +150,12 @@ class Connection extends IlluminateConnection
      */
     public function select($query, $bindings = [], $useReadPdo = true, array $fetchUsing = [])
     {
-        return $this->run($query, $bindings, function ($query, $bindings) use ($fetchUsing) {
+        return $this->run($query, $bindings, function ($query, $bindings) use ($fetchUsing, $useReadPdo) {
             if ($this->pretending()) {
                 return [];
             }
 
-            $statement = $this->getPdo()->prepare($this->compileNewQuery(
+            $statement = $this->getPdoForSelect($useReadPdo)->prepare($this->compileNewQuery(
                 $query,
                 $bindings
             ));
@@ -169,7 +169,7 @@ class Connection extends IlluminateConnection
                     $rows = $fetchUsing !== []
                         ? $statement->fetchAll(...$fetchUsing)
                         : $statement->fetchAll($this->getFetchMode());
-                    $result += $rows;
+                    $result = [...$result, ...$rows];
                 } while ($statement->nextRowset());
             } catch (\Exception $e) {
             }
