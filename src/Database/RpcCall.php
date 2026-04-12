@@ -3,7 +3,9 @@
 namespace Uepg\LaravelSybase\Database;
 
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Support\Collection;
 use InvalidArgumentException;
+use Uepg\LaravelSybase\Contracts\RpcResultDto;
 
 class RpcCall
 {
@@ -123,6 +125,33 @@ class RpcCall
 
         return $this;
     }
+
+
+    /**
+     * @template T of RpcResultDto
+     *
+     * @param  class-string<T>  $class
+     * @return T|null
+     */
+    public function firstAs(string $class): mixed
+    {
+        $row = $this->first();
+
+        return $row !== null ? $class::fromArray($row) : null;
+    }
+
+    /**
+     * @template T of RpcResultDto
+     *
+     * @param  class-string<T>  $class
+     * @return Collection<int, T>
+     */
+    public function getAs(string $class): Collection
+    {
+        return collect($this->get())
+            ->map(fn (array $row) => $class::fromArray($row));
+    }
+
 
     /**
      * @return array{0: string, 1: array<int, mixed>}

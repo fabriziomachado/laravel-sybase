@@ -3,6 +3,7 @@
 namespace Tests;
 
 use Illuminate\Contracts\Support\Arrayable;
+use Uepg\LaravelSybase\Contracts\RpcResultDto;
 use Uepg\LaravelSybase\Database\Connection;
 use Uepg\LaravelSybase\Database\ProcedureExecutionException;
 use Uepg\LaravelSybase\Database\RpcCall;
