@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Roda PHPUnit em container (Docker no WSL Ubuntu / Linux). Requer vendor/ (rode docker-composer antes).
+# Usa composer:2 (já puxada pelo docker-composer) para evitar segundo pull; a imagem inclui PHP.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+exec docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -v "${ROOT}:/app" \
+  -w /app \
+  -e HOME=/tmp \
+  composer:2 \
+  php vendor/bin/phpunit "$@"
