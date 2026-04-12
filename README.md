@@ -158,7 +158,7 @@ $first = DB::connection('sybase')
 DB::connection('sybase')
     ->rpc('dbo.sp_exemplo')
     ->with($dto) // Illuminate\Contracts\Support\Arrayable or associative array
-    ->assertOk() // throws ProcedureExecutionException if cd_retorno != 0
+    ->throwOnError() // throws ProcedureExecutionException if cd_retorno != 0
     ->first();
 ```
 
@@ -190,6 +190,51 @@ try {
     // syntax, connectivity, Sybase errors, etc.
 }
 ```
+
+
+
+
+### Hydrating results into DTOs
+
+Implement `Uepg\LaravelSybase\Contracts\RpcResultDto` on a class with `fromArray(array $row): static`, then use `firstAs()` for a single row or `getAs()` for every row as an `Illuminate\Support\Collection`:
+
+```php
+use Illuminate\Support\Facades\DB;
+use Uepg\LaravelSybase\Contracts\RpcResultDto;
+
+final class LoginRow implements RpcResultDto
+{
+    public function __construct(
+        public readonly int $cdRetorno,
+        public readonly ?string $msgRetorno,
+    ) {}
+
+    public static function fromArray(array $row): static
+    {
+        return new self(
+            cdRetorno: (int) ($row['cd_retorno'] ?? 0),
+            msgRetorno: isset($row['msg_retorno']) ? (string) $row['msg_retorno'] : null,
+        );
+    }
+}
+
+$row = DB::connection('sybase')
+    ->rpc('dbo.sp_exemplo')
+    ->with(['cd_pessoa_p' => $id])
+    ->throwOnError()
+    ->firstAs(LoginRow::class); // LoginRow|null
+
+$rows = DB::connection('sybase')
+    ->rpc('dbo.sp_lista')
+    ->with(['p' => 1])
+    ->getAs(LoginRow::class); // Collection<int, LoginRow>
+```
+
+
+
+
+
+
 
 Optional read path and fetch mode follow `select()`:
 
